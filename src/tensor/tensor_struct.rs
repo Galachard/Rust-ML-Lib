@@ -1,9 +1,11 @@
 use crate::error::TensorError;
+use crate::grad::GradFn;
+use crate::grad::LeafGrad;
 use crate::graph::Node;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-/// Tensor struct representing a multi-dimensional array with optional computation graph node.
+/// Tensor struct representing a multidimensional array with optional computation graph node.
 /// Shape is represented as a vector of usize, and data is stored in a flat vector of f32.
 /// Can optionally link to a computation graph node for automatic differentiation.
 /// # Examples
@@ -15,7 +17,7 @@ use std::rc::Rc;
 /// ```
 /// ```
 /// use ml_lib::tensor::Tensor;
-/// use ml_lib::grad::grad_fn::LeafGrad;
+/// use ml_lib::grad::LeafGrad;
 /// use ml_lib::graph::node::Node;
 /// let t = Tensor::from_vec_with_node(vec![1.0, 2.0, 3.0], vec![3], Some(Node::new(vec![], Box::new(LeafGrad {}))));
 /// assert_eq!(t.data(), &[1.0, 2.0, 3.0]);
@@ -128,6 +130,69 @@ impl Tensor {
         node: Option<Rc<RefCell<Node>>>,
     ) -> Self {
         Tensor { data, shape, node }
+    }
+
+    /// Creates a leaf tensor from a vector of data and a shape.
+    pub fn from_vec_leaf(data: Vec<f32>, shape: Vec<usize>) -> Self {
+        Tensor {
+            data,
+            shape,
+            node: Some(Node::new(vec![], Box::new(LeafGrad {}))),
+        }
+    }
+
+    /// Apply a function element-wise to the tensor, with its derivative for backpropagation.
+    pub fn map<F, G>(&self, f: F, df: G) -> Tensor
+    where
+        F: Fn(f32) -> f32 + 'static,
+        G: Fn(f32) -> f32 + 'static,
+    {
+        // Forward pass
+        let out_data: Vec<f32> = self.data.iter().copied().map(&f).collect();
+
+        // Backward node
+        struct MapBackward<G>
+        where
+            G: Fn(f32) -> f32,
+        {
+            input: Tensor,
+            df: G,
+        }
+
+        impl<G> GradFn for MapBackward<G>
+        where
+            G: Fn(f32) -> f32 + 'static,
+        {
+            fn backward(&self, grad_output: &Tensor) -> Vec<Tensor> {
+                let grad_data: Vec<f32> = self
+                    .input
+                    .data
+                    .iter()
+                    .zip(&grad_output.data)
+                    .map(|(&x, &g)| g * (self.df)(x))
+                    .collect();
+
+                vec![Tensor {
+                    data: grad_data,
+                    shape: self.input.shape.clone(),
+                    node: None,
+                }]
+            }
+        }
+
+        let node = Node::new(
+            vec![self.node.as_ref().expect("Tensor must have node").clone()],
+            Box::new(MapBackward {
+                input: self.clone(),
+                df,
+            }),
+        );
+
+        Tensor {
+            data: out_data,
+            shape: self.shape.clone(),
+            node: Some(node),
+        }
     }
 }
 

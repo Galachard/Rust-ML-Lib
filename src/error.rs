@@ -14,6 +14,7 @@ pub enum TensorError {
     GradientMissing,
     DimensionError(String),
     NotImplemented(&'static str),
+    DivisionByZero,
 }
 
 impl fmt::Display for TensorError {
@@ -30,6 +31,7 @@ impl fmt::Display for TensorError {
             TensorError::GradientMissing => write!(f, "Gradient requested but not available"),
             TensorError::DimensionError(msg) => write!(f, "Dimension error: {}", msg),
             TensorError::NotImplemented(msg) => write!(f, "Not implemented: {}", msg),
+            TensorError::DivisionByZero => write!(f, "Division by zero error"),
         }
     }
 }

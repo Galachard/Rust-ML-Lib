@@ -1,4 +1,4 @@
-use ml_lib::grad::grad_fn::LeafGrad;
+use ml_lib::grad::LeafGrad;
 use ml_lib::graph::node::Node;
 use ml_lib::ops::grad_ops;
 use ml_lib::tensor::tensor_struct::*;

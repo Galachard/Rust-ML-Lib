@@ -24,10 +24,8 @@ impl Tensor {
             visited.insert(ptr);
 
             ordered.push(node.clone());
-            for parent_weak in &node.borrow().parents {
-                if let Some(parent_rc) = parent_weak.upgrade() {
-                    dfs(&parent_rc, visited, ordered);
-                }
+            for parent in &node.borrow().parents {
+                dfs(parent, visited, ordered);
             }
         }
 
@@ -37,34 +35,31 @@ impl Tensor {
 
     /// Perform backward pass to compute gradients
     pub fn backward(&self) {
-        // Get the root node
+        // Root node
         let node = self.node.as_ref().expect("No node found").clone();
-
-        // Initialize gradient of the output (1)
         node.borrow_mut().grad = Some(Tensor::ones_like(self));
-
-        // Sort (DFS) all nodes reachable from this tensor
         let order = Self::sort_nodes(&node);
 
         // Traverse nodes
         for n in order {
             // In this order all grads are guaranteed to be Some() - they will have a value
             // from their children
-            let incoming_grad = &n.borrow().grad.as_ref().unwrap().clone();
+            let incoming_grad = {
+                let nb = n.borrow();
+                nb.grad.as_ref().expect("missing grad").clone()
+            };
 
             // Compute gradients for parents using GradFn
-            let parent_grads = n.borrow().grad_fn.backward(incoming_grad);
+            let parent_grads = n.borrow().grad_fn.backward(&incoming_grad);
 
             // Accumulate gradients into the parents’ grad fields
             for (parent, g) in n.borrow().parents.iter().zip(parent_grads) {
-                if let Some(p) = parent.upgrade() {
-                    let mut pb = p.borrow_mut();
+                let mut pb = parent.borrow_mut();
 
-                    pb.grad = match &pb.grad {
-                        Some(prev) => Some(raw_add(prev, &g).expect("Shape mismatch in backward")),
-                        None => Some(g),
-                    };
-                }
+                pb.grad = match &pb.grad {
+                    Some(prev) => Some(raw_add(prev, &g).expect("Shape mismatch in backward")),
+                    None => Some(g),
+                };
             }
         }
     }
@@ -73,7 +68,7 @@ impl Tensor {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::grad::grad_fn::LeafGrad;
+    use crate::grad::LeafGrad;
 
     #[test]
     fn test_dfs_simple_graph() {
@@ -82,13 +77,10 @@ mod test {
         let leaf2 = Node::new(vec![], Box::new(LeafGrad));
 
         // Create an intermediate node that depends on leaf1 and leaf2
-        let intermediate = Node::new(
-            vec![Rc::downgrade(&leaf1), Rc::downgrade(&leaf2)],
-            Box::new(LeafGrad),
-        );
+        let intermediate = Node::new(vec![leaf1.clone(), leaf2.clone()], Box::new(LeafGrad));
 
         // Create a root node that depends on the intermediate node
-        let root = Node::new(vec![Rc::downgrade(&intermediate)], Box::new(LeafGrad));
+        let root = Node::new(vec![intermediate.clone()], Box::new(LeafGrad));
 
         // Perform sort
         let order = Tensor::sort_nodes(&root);

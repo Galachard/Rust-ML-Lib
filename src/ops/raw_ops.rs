@@ -60,6 +60,33 @@ pub fn raw_scalar_mul(t: &Tensor, scalar: f32) -> Result<Tensor, TensorError> {
     Ok(Tensor::new(out, t.shape.clone()))
 }
 
+/// Element-wise division of two tensors without gradient tracking.
+pub fn raw_div(a: &Tensor, b: &Tensor) -> Result<Tensor, TensorError> {
+    check_shapes(a, b)?;
+
+    let mut out = a.data.clone();
+    for (i, v) in out.iter_mut().enumerate() {
+        if b.data[i] == 0.0 {
+            return Err(TensorError::DivisionByZero);
+        }
+        *v /= b.data[i];
+    }
+
+    Ok(Tensor::new(out, a.shape.clone()))
+}
+
+/// Element-wise division of a tensor by a scalar without gradient tracking.
+pub fn raw_scalar_div(t: &Tensor, scalar: f32) -> Result<Tensor, TensorError> {
+    if scalar == 0.0 {
+        return Err(TensorError::DivisionByZero);
+    }
+    let mut out = t.data.clone();
+    for v in out.iter_mut() {
+        *v /= scalar;
+    }
+    Ok(Tensor::new(out, t.shape.clone()))
+}
+
 /// Matrix multiplication of two rank-2 tensors without gradient tracking.
 pub fn raw_matmul(a: &Tensor, b: &Tensor) -> Result<Tensor, TensorError> {
     // Custom shape check due to matrix multiplication
@@ -92,7 +119,7 @@ pub fn raw_matmul(a: &Tensor, b: &Tensor) -> Result<Tensor, TensorError> {
     Ok(Tensor::new(out_data, vec![m, n]))
 }
 
-/// Element-wise multiplication of two tensors without gradient tracking.
+/// Element-wise addition of two tensors without gradient tracking.
 pub fn raw_add(a: &Tensor, b: &Tensor) -> Result<Tensor, TensorError> {
     check_shapes(a, b)?;
 
@@ -104,11 +131,41 @@ pub fn raw_add(a: &Tensor, b: &Tensor) -> Result<Tensor, TensorError> {
     Ok(Tensor::new(out, b.shape.clone()))
 }
 
+/// Element-wise subtraction of two tensors without gradient tracking.
+pub fn raw_sub(a: &Tensor, b: &Tensor) -> Result<Tensor, TensorError> {
+    check_shapes(a, b)?;
+
+    let mut out = a.data.clone();
+    for (i, v) in out.iter_mut().enumerate() {
+        *v -= b.data[i];
+    }
+
+    Ok(Tensor::new(out, b.shape.clone()))
+}
+
+/// Element-wise addition of a tensor and a scalar without gradient tracking.
+pub fn raw_scalar_add(t: &Tensor, scalar: f32) -> Result<Tensor, TensorError> {
+    let mut out = t.data.clone();
+    for v in out.iter_mut() {
+        *v += scalar;
+    }
+    Ok(Tensor::new(out, t.shape.clone()))
+}
+
 /// Element-wise exponential of a tensor without gradient tracking.
 pub fn raw_exp(t: &Tensor) -> Result<Tensor, TensorError> {
     let mut out = t.data.clone();
     for v in out.iter_mut() {
         *v = v.exp();
+    }
+    Ok(Tensor::new(out, t.shape.clone()))
+}
+
+/// Element-wise inversion of a tensor without gradient tracking.
+pub fn raw_inv(t: &Tensor) -> Result<Tensor, TensorError> {
+    let mut out = t.data.clone();
+    for v in out.iter_mut() {
+        *v = 1.0 / *v;
     }
     Ok(Tensor::new(out, t.shape.clone()))
 }
