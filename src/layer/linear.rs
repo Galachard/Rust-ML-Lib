@@ -27,8 +27,8 @@ impl Linear {
         weight_init: &dyn Initializer,
         bias_init: &dyn Initializer,
     ) -> Self {
-        let weight_shape = vec![input_dim, output_dim];
-        let bias_shape = vec![1, output_dim];
+        let weight_shape = vec![output_dim, input_dim];
+        let bias_shape = vec![output_dim, 1];
 
         let weight = Parameter::from_vec(weight_init.init(&weight_shape), weight_shape);
 
