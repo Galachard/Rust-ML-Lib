@@ -6,5 +6,6 @@ pub mod loss;
 pub mod ops;
 pub mod optimizer;
 pub mod tensor;
+pub mod metric;
 
 pub use tensor::*;

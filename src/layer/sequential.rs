@@ -1,5 +1,4 @@
 use crate::layer::Layer;
-use crate::loss::mse;
 use crate::optimizer::Optimizer;
 use crate::{Parameter, Tensor};
 
