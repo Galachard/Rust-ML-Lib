@@ -11,7 +11,6 @@ fn main() {
     // SGD optimizer
     let mut opt = optimizer::SGD::new(model.parameters(), 0.1);
 
-    // Training data: y = 2x + 1
     let inputs = vec![
         Tensor::from_vec_leaf(vec![0.0], vec![1, 1]),
         Tensor::from_vec_leaf(vec![1.0], vec![1, 1]),
