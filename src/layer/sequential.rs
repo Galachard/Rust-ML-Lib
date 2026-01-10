@@ -1,5 +1,5 @@
 use crate::layer::Layer;
-use crate::losses::mse;
+use crate::loss::mse;
 use crate::optimizer::Optimizer;
 use crate::{Parameter, Tensor};
 
@@ -52,22 +52,43 @@ impl Sequential {
         inputs: &[Tensor],
         targets: &[Tensor],
         epochs: usize,
+        batch_size: usize,
+        loss_function: impl Fn(&Tensor, &Tensor) -> Tensor,
     ) {
+        assert_eq!(inputs.len(), targets.len());
+
+        let n = inputs.len();
+
         for epoch in 0..epochs {
             let mut total_loss = 0.0;
 
-            for (x, y) in inputs.iter().zip(targets.iter()) {
-                let pred = model.forward(x);
-                let loss = mse(&pred, y); // TODO: should allow different losses
+            let mut i = 0;
+            while i < n {
+                let end = (i + batch_size).min(n);
 
-                model.backward(&loss);
-                model.step(optimizer);
+                // Zero grad once per batch
                 model.zero_grad(optimizer);
 
-                total_loss += loss.data[0];
+                for j in i..end {
+                    let pred = model.forward(&inputs[j]);
+                    let loss = loss_function(&pred, &targets[j]);
+
+                    model.backward(&loss);
+                    total_loss += loss.data[0];
+                }
+
+                // Apply accumulated gradients
+                model.step(optimizer);
+
+                i = end;
             }
 
-            println!("Epoch {epoch}: loss = {}", total_loss / inputs.len() as f32);
+            println!(
+                "Epoch {}: loss = {}",
+                epoch,
+                total_loss / n as f32
+            );
         }
     }
+
 }

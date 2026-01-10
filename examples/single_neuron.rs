@@ -1,6 +1,7 @@
 use ml_lib::layer::Layer;
 use ml_lib::layer::initializer::{HeNormal, Zeros};
 use ml_lib::{Tensor, layer, optimizer};
+use ml_lib::loss::mse;
 
 fn main() {
     // Specify the model - linear regression, no activation function
@@ -25,7 +26,7 @@ fn main() {
     ];
 
     // Train the model
-    layer::Sequential::train(&model, &mut opt, &inputs, &targets, 256);
+    layer::Sequential::train(&model, &mut opt, &inputs, &targets, 256, 4, mse);
 
     // Test the model
     // For -1.0 the output should be close to 0, for 2.5 between 0 and 1 and for 5.0 close to 1

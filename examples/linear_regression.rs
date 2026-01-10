@@ -1,6 +1,7 @@
 use ml_lib::layer::Layer;
 use ml_lib::layer::initializer::{HeNormal, Zeros};
 use ml_lib::{Tensor, layer, optimizer};
+use ml_lib::loss::mse;
 
 fn main() {
     // Specify the model - linear regression, no activation function
@@ -8,7 +9,7 @@ fn main() {
     model.add(layer::Linear::new(1, 1, &HeNormal {}, &Zeros {}));
 
     // SGD optimizer
-    let mut opt = optimizer::SGD::new(model.parameters(), 0.1);
+    let mut opt = optimizer::SGD::new(model.parameters(), 0.01);
 
     // Training data: y = 2x + 1
     let inputs = vec![
@@ -27,7 +28,7 @@ fn main() {
     ];
 
     // Train the model
-    layer::Sequential::train(&model, &mut opt, &inputs, &targets, 10);
+    layer::Sequential::train(&model, &mut opt, &inputs, &targets, 16, 5, mse);
 
     // Test the model - for 5.0 the output should be close to 11.0
     let test_input = Tensor::from_vec_leaf(vec![5.0], vec![1, 1]);

@@ -1,6 +1,7 @@
 use ml_lib::layer::Layer;
 use ml_lib::layer::initializer::{HeNormal, Zeros};
 use ml_lib::{Tensor, layer, optimizer};
+use ml_lib::loss::mse;
 
 fn main() {
     // Specify the model - linear regression, no activation function
@@ -28,7 +29,7 @@ fn main() {
     ];
 
     // Train the model
-    layer::Sequential::train(&model, &mut opt, &inputs, &targets, 256);
+    layer::Sequential::train(&model, &mut opt, &inputs, &targets, 256, 4, mse);
 
     // Test the model on training data (does it reproduce XOR)
     let test_input = Tensor::from_vec_leaf(vec![0.0, 0.0], vec![2, 1]);

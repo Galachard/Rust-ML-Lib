@@ -2,7 +2,7 @@ pub mod error;
 pub mod grad;
 pub mod graph;
 pub mod layer;
-pub mod losses;
+pub mod loss;
 pub mod ops;
 pub mod optimizer;
 pub mod tensor;
