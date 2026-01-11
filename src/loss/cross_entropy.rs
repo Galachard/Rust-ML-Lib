@@ -1,6 +1,6 @@
 use crate::Tensor;
-use crate::graph::Node;
 use crate::grad::GradFn;
+use crate::graph::Node;
 
 /// Cross entropy loss: expects probabilities (after Softmax)
 pub fn cross_entropy(pred: &Tensor, target: &Tensor) -> Tensor {
@@ -12,13 +12,7 @@ pub fn cross_entropy(pred: &Tensor, target: &Tensor) -> Tensor {
         .data
         .iter()
         .zip(&target.data)
-        .map(|(p, t)| {
-            if *t > 0.0 {
-                -t * (p + eps).ln()
-            } else {
-                0.0
-            }
-        })
+        .map(|(p, t)| if *t > 0.0 { -t * (p + eps).ln() } else { 0.0 })
         .sum();
 
     struct CrossEntropyBackward {
@@ -33,20 +27,11 @@ pub fn cross_entropy(pred: &Tensor, target: &Tensor) -> Tensor {
                 .pred
                 .iter()
                 .zip(&self.target)
-                .map(|(p, t)| {
-                    if *t > 0.0 {
-                        -t / (p + 1e-9)
-                    } else {
-                        0.0
-                    }
-                })
+                .map(|(p, t)| if *t > 0.0 { -t / (p + 1e-9) } else { 0.0 })
                 .map(|g| g * grad_output.data[0])
                 .collect();
 
-            vec![Tensor::from_vec_leaf(
-                grad,
-                grad_output.shape.clone(),
-            )]
+            vec![Tensor::from_vec_leaf(grad, grad_output.shape.clone())]
         }
     }
 

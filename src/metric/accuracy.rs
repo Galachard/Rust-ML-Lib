@@ -19,9 +19,5 @@ pub fn accuracy(pred: &Tensor, target: &Tensor) -> f32 {
         .map(|(i, _)| i)
         .unwrap();
 
-    if pred_class == target_class {
-        1.0
-    } else {
-        0.0
-    }
+    if pred_class == target_class { 1.0 } else { 0.0 }
 }

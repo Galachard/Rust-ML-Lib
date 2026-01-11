@@ -1,9 +1,13 @@
 use crate::Tensor;
-use crate::graph::Node;
 use crate::grad::GradFn;
+use crate::graph::Node;
 
 pub fn softmax_cross_entropy(logits: &Tensor, target: &Tensor) -> Tensor {
-    let max = logits.data.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+    let max = logits
+        .data
+        .iter()
+        .cloned()
+        .fold(f32::NEG_INFINITY, f32::max);
 
     let exp: Vec<f32> = logits.data.iter().map(|x| (x - max).exp()).collect();
     let sum: f32 = exp.iter().sum();

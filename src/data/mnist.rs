@@ -1,8 +1,8 @@
+use crate::Tensor;
+use crate::data::utils::one_hot;
 use std::fs::File;
 use std::io::{Read, Result};
 use std::path::PathBuf;
-use crate::data::utils::one_hot;
-use crate::Tensor;
 
 #[derive(Debug)]
 pub struct Mnist {
@@ -92,16 +92,10 @@ pub fn load_mnist_as_tensors(
 
     for i in 0..num_samples {
         // Input tensor: [784, 1]
-        let x = Tensor::from_vec_leaf(
-            mnist.images[i].clone(),
-            vec![input_size, 1],
-        );
+        let x = Tensor::from_vec_leaf(mnist.images[i].clone(), vec![input_size, 1]);
 
         // Target tensor: [num_classes, 1]
-        let y = Tensor::from_vec_leaf(
-            one_hot(mnist.labels[i], num_classes),
-            vec![num_classes, 1],
-        );
+        let y = Tensor::from_vec_leaf(one_hot(mnist.labels[i], num_classes), vec![num_classes, 1]);
 
         inputs.push(x);
         targets.push(y);
@@ -109,4 +103,3 @@ pub fn load_mnist_as_tensors(
 
     Ok((inputs, targets))
 }
-

@@ -1,11 +1,15 @@
-use crate::layer::Layer;
-use crate::layer::initializer::Initializer;
+use crate::layer::initializer::{Initializer, Zeros};
+use crate::layer::{Layer, SerializableLayer};
 use crate::ops::{add, matmul};
 use crate::{Parameter, Tensor};
+use bitcode;
+use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
 
 pub struct Linear {
     pub weight: Parameter,
     pub bias: Parameter,
+    config: RefCell<LinearConfig>,
 }
 
 impl Layer for Linear {
@@ -17,6 +21,10 @@ impl Layer for Linear {
 
     fn parameters(&self) -> Vec<Parameter> {
         vec![self.weight.clone(), self.bias.clone()]
+    }
+
+    fn as_serializable(&self) -> Option<&dyn SerializableLayer> {
+        Some(self)
     }
 }
 
@@ -34,6 +42,56 @@ impl Linear {
 
         let bias = Parameter::from_vec(bias_init.init(&bias_shape), bias_shape);
 
-        Self { weight, bias }
+        Self {
+            weight,
+            bias,
+            config: RefCell::new(LinearConfig {
+                in_dim: input_dim,
+                out_dim: output_dim,
+            }),
+        }
+    }
+
+    pub fn dummy() -> Self {
+        Self::new(0, 0, &Zeros, &Zeros)
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+struct LinearConfig {
+    in_dim: usize,
+    out_dim: usize,
+}
+
+impl SerializableLayer for Linear {
+    fn layer_type(&self) -> &'static str {
+        "Linear"
+    }
+
+    fn serialize_config(&self) -> Vec<u8> {
+        let cfg = self.config.borrow();
+        bitcode::serialize(&*cfg).unwrap()
+    }
+
+    fn load_config(&self, data: &[u8]) {
+        let cfg: LinearConfig = bitcode::deserialize(data).unwrap();
+        *self.config.borrow_mut() = cfg;
+    }
+
+    fn parameters_serializable(&self) -> Vec<(String, Tensor)> {
+        vec![
+            ("weight".into(), self.weight.tensor.borrow().clone()),
+            ("bias".into(), self.bias.tensor.borrow().clone()),
+        ]
+    }
+
+    fn load_parameters(&self, params: Vec<(String, Tensor)>) {
+        for (name, t) in params {
+            match name.as_str() {
+                "weight" => *self.weight.tensor.borrow_mut() = t,
+                "bias" => *self.bias.tensor.borrow_mut() = t,
+                _ => panic!("Unknown param {}", name),
+            }
+        }
     }
 }

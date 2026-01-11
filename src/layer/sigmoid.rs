@@ -1,6 +1,7 @@
-use crate::layer::Layer;
+use crate::layer::{Layer, SerializableLayer};
 use crate::ops::{exp, inv, scalar_add, scalar_mul};
 use crate::{Parameter, Tensor};
+use bitcode;
 
 pub struct Sigmoid;
 
@@ -15,4 +16,24 @@ impl Layer for Sigmoid {
     fn parameters(&self) -> Vec<Parameter> {
         vec![]
     }
+
+    fn as_serializable(&self) -> Option<&dyn SerializableLayer> {
+        Some(self)
+    }
+}
+
+impl SerializableLayer for Sigmoid {
+    fn layer_type(&self) -> &'static str {
+        "Sigmoid"
+    }
+
+    fn serialize_config(&self) -> Vec<u8> {
+        vec![]
+    }
+    fn load_config(&self, _data: &[u8]) {}
+    fn parameters_serializable(&self) -> Vec<(String, Tensor)> {
+        vec![]
+    }
+
+    fn load_parameters(&self, _params: Vec<(String, Tensor)>) {}
 }

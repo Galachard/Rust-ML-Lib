@@ -1,7 +1,7 @@
 use ml_lib::layer::Layer;
 use ml_lib::layer::initializer::{HeNormal, Zeros};
-use ml_lib::{Tensor, layer, optimizer};
 use ml_lib::loss::mse;
+use ml_lib::{Tensor, layer, optimizer};
 
 fn main() {
     // Specify the model - linear regression, no activation function

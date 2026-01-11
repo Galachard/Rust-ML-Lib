@@ -11,3 +11,5 @@ path = "src/lib.rs"
 rand = "0.9.2"
 rand_distr = "0.5.1"
 indicatif = "0.18.3"
+serde = { version = "1.0.228", features = ["derive"] }
+bitcode = { version = "0.6.9", features = ["serde"]}
