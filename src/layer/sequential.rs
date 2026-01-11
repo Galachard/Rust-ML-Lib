@@ -1,6 +1,7 @@
 use crate::layer::Layer;
 use crate::optimizer::Optimizer;
 use crate::{Parameter, Tensor};
+use indicatif::{ProgressBar, ProgressStyle};
 
 pub struct Sequential {
     layers: Vec<Box<dyn Layer>>,
@@ -61,6 +62,14 @@ impl Sequential {
         for epoch in 0..epochs {
             let mut total_loss = 0.0;
 
+            let pb = ProgressBar::new((n / batch_size) as u64);
+            pb.set_style(
+                ProgressStyle::with_template(
+                    "[{elapsed_precise}] {bar:40.white/grey} {pos}/{len} loss={msg}",
+                )
+                .unwrap(),
+            );
+
             let mut i = 0;
             while i < n {
                 let end = (i + batch_size).min(n);
@@ -75,6 +84,8 @@ impl Sequential {
                     model.backward(&loss);
                     total_loss += loss.data[0];
                 }
+                pb.set_message(format!("{:.4}", total_loss / (end as f32)));
+                pb.inc(1);
 
                 // Apply accumulated gradients
                 model.step(optimizer);
@@ -82,12 +93,7 @@ impl Sequential {
                 i = end;
             }
 
-            println!(
-                "Epoch {}: loss = {}",
-                epoch,
-                total_loss / n as f32
-            );
+            pb.finish_with_message(format!("Epoch {}: loss = {}", epoch, total_loss / n as f32));
         }
     }
-
 }
