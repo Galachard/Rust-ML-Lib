@@ -11,11 +11,11 @@ use indicatif::{ProgressBar, ProgressStyle};
 /// can be saved to and loaded from disk
 /// Example:
 /// ```
-/// use ml_lib::layer::{Sequential, Linear, ELU};
+/// use ml_lib::layer::{Sequential, Linear, ELU, initializer::HeNormal, initializer::Zeros};
 /// let mut model = Sequential::new();
-/// model.add(Linear::new(784, 128));
+/// model.add(Linear::new(784, 128, &HeNormal {}, &Zeros {}));
 /// model.add(ELU::default());
-/// model.add(Linear::new(128, 10));
+/// model.add(Linear::new(128, 10, &HeNormal {}, &Zeros {}));
 /// ```
 pub struct Sequential {
     layers: Vec<Box<dyn Layer>>,
