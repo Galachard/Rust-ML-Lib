@@ -105,11 +105,21 @@ impl Sequential {
                 model.step(optimizer);
                 i = end;
 
-                pb.set_message(format!("Epoch {}/{}: loss={:.4}", epoch + 1, epochs, total_loss / (end as f32)));
+                pb.set_message(format!(
+                    "Epoch {}/{}: loss={:.4}",
+                    epoch + 1,
+                    epochs,
+                    total_loss / (end as f32)
+                ));
                 pb.inc(1);
             }
 
-            pb.finish_with_message(format!("Epoch {}/{}: loss={}", epoch + 1, epochs, total_loss / n as f32));
+            pb.finish_with_message(format!(
+                "Epoch {}/{}: loss={}",
+                epoch + 1,
+                epochs,
+                total_loss / n as f32
+            ));
         }
     }
 
