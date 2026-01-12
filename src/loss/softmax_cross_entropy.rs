@@ -2,6 +2,13 @@ use crate::Tensor;
 use crate::grad::GradFn;
 use crate::graph::Node;
 
+/// Computes the softmax cross-entropy loss between logits and target.
+/// # Arguments
+/// * `logits` - A tensor of shape (N, C) where
+///   N is the number of samples and C is the number of classes.
+/// * `target` - A tensor of shape (N, C) representing the one-hot encoded target labels.
+/// # Returns
+/// A tensor representing the softmax cross-entropy loss.
 pub fn softmax_cross_entropy(logits: &Tensor, target: &Tensor) -> Tensor {
     let max = logits
         .data

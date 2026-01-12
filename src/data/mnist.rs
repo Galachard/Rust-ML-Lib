@@ -77,6 +77,7 @@ impl Mnist {
     }
 }
 
+/// Load MNIST dataset and convert to tensors
 pub fn load_mnist_as_tensors(
     image_path: PathBuf,
     label_path: PathBuf,

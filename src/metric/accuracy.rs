@@ -1,5 +1,11 @@
 use crate::Tensor;
 
+/// Computes the accuracy between predicted and target tensors.
+/// # Arguments
+/// * `pred` - A tensor containing predicted values (e.g., logits or probabilities).
+/// * `target` - A tensor containing the true target values (e.g., one-hot encoded).
+/// # Returns
+/// * A float representing the accuracy (1.0 for correct prediction, 0.0 for incorrect).
 pub fn accuracy(pred: &Tensor, target: &Tensor) -> f32 {
     assert_eq!(pred.data.len(), target.data.len());
 

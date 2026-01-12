@@ -4,6 +4,19 @@ use crate::optimizer::Optimizer;
 use crate::{Parameter, Tensor};
 use indicatif::{ProgressBar, ProgressStyle};
 
+/// A sequential container for layers
+/// Applies layers in the order they were added
+/// Supports training loop with batching and progress bar
+/// Supports serialization and deserialization of layers that implement SerializableLayer and
+/// can be saved to and loaded from disk
+/// Example:
+/// ```
+/// use ml_lib::layer::{Sequential, Linear, ELU};
+/// let mut model = Sequential::new();
+/// model.add(Linear::new(784, 128));
+/// model.add(ELU::default());
+/// model.add(Linear::new(128, 10));
+/// ```
 pub struct Sequential {
     layers: Vec<Box<dyn Layer>>,
 }
@@ -69,7 +82,7 @@ impl Sequential {
             let pb = ProgressBar::new((n / batch_size) as u64);
             pb.set_style(
                 ProgressStyle::with_template(
-                    "[{elapsed_precise}] {bar:40.white/grey} {pos}/{len} loss={msg}",
+                    "[{elapsed_precise}] {bar:32.white/grey} {pos}/{len} {msg}",
                 )
                 .unwrap(),
             );
@@ -92,11 +105,11 @@ impl Sequential {
                 model.step(optimizer);
                 i = end;
 
-                pb.set_message(format!("{:.4}", total_loss / (end as f32)));
+                pb.set_message(format!("Epoch {}/{}: loss={:.4}", epoch + 1, epochs, total_loss / (end as f32)));
                 pb.inc(1);
             }
 
-            pb.finish_with_message(format!("Epoch {}: loss = {}", epoch, total_loss / n as f32));
+            pb.finish_with_message(format!("Epoch {}/{}: loss={}", epoch + 1, epochs, total_loss / n as f32));
         }
     }
 

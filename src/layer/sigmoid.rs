@@ -2,6 +2,8 @@ use crate::layer::{Layer, SerializableLayer};
 use crate::ops::{exp, inv, scalar_add, scalar_mul};
 use crate::{Parameter, Tensor};
 
+/// Sigmoid activation layer
+/// Applies the sigmoid function element-wise: f(x) = 1 / (1 + exp(-x))
 pub struct Sigmoid;
 
 impl Layer for Sigmoid {

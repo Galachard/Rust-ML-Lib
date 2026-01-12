@@ -1,5 +1,6 @@
 use crate::layer::initializer::Initializer;
 
+/// An initializer that sets all weights to zero.
 pub struct Zeros;
 
 impl Initializer for Zeros {

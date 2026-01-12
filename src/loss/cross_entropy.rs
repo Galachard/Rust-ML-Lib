@@ -3,6 +3,11 @@ use crate::grad::GradFn;
 use crate::graph::Node;
 
 /// Cross entropy loss: expects probabilities (after Softmax)
+/// # Arguments
+/// * `pred` - Predicted probabilities tensor
+/// * `target` - One-hot encoded target tensor
+/// # Returns
+/// * `Tensor` - Scalar tensor representing the cross entropy loss
 pub fn cross_entropy(pred: &Tensor, target: &Tensor) -> Tensor {
     assert_eq!(pred.data.len(), target.data.len());
 

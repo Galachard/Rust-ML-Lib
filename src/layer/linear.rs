@@ -6,6 +6,17 @@ use bitcode;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 
+/// A fully connected linear layer.
+/// # Example
+/// ```
+/// use ml_lib::layer::{Linear, Layer};
+/// use ml_lib::layer::initializer::Zeros;
+/// use ml_lib::Tensor;
+/// let layer = Linear::new(3, 2, &Zeros, &Zeros);
+/// let input = Tensor::from_vec_leaf(vec![1.0, 2.0, 3.0], vec![3, 1]);
+/// let output = layer.forward(&input);
+/// assert_eq!(output.shape()[0], 2);
+/// ```
 pub struct Linear {
     pub weight: Parameter,
     pub bias: Parameter,

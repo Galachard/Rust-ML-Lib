@@ -4,6 +4,16 @@ use bitcode;
 use serde::{Deserialize, Serialize};
 use std::cell::Cell;
 
+/// Exponential Linear Unit (ELU) activation layer.
+///
+/// The ELU activation function is defined as:
+/// - For x >= 0: f(x) = x
+/// - For x < 0: f(x) = alpha * (exp(x) - 1)
+/// # Example
+/// ```
+/// use ml_lib::layer::ELU;
+/// let elu = ELU::new(1.0);
+/// ```
 pub struct ELU {
     alpha: Cell<f32>,
 }

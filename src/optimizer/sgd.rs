@@ -1,6 +1,7 @@
 use crate::Parameter;
 use crate::optimizer::Optimizer;
 
+/// Stochastic Gradient Descent (SGD) optimizer
 pub struct SGD {
     params: Vec<Parameter>,
     pub lr: f32,
@@ -51,6 +52,12 @@ impl Optimizer for SGD {
 }
 
 impl SGD {
+    /// Create a new SGD optimizer
+    /// # Arguments
+    /// * `params` - A vector of parameters to optimize
+    /// * `lr` - Learning rate
+    /// # Returns
+    /// A new SGD optimizer
     pub fn new(params: Vec<Parameter>, lr: f32) -> SGD {
         SGD { params, lr }
     }

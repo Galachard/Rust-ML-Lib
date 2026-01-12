@@ -1,5 +1,8 @@
 use crate::layer::initializer::{Initializer, Normal};
 
+/// He Normal initializer
+/// Initializes weights with values drawn from a normal distribution
+/// with mean 0 and standard deviation sqrt(2 / fan_in)
 pub struct HeNormal;
 
 impl Initializer for HeNormal {
