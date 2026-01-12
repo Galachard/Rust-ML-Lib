@@ -1,7 +1,6 @@
 use crate::layer::{Layer, SerializableLayer};
 use crate::ops::{exp, inv, scalar_add, scalar_mul};
 use crate::{Parameter, Tensor};
-use bitcode;
 
 pub struct Sigmoid;
 

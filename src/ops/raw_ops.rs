@@ -1,6 +1,63 @@
 use crate::error::TensorError;
 use crate::tensor::*;
 
+#[cfg(feature = "parallel_ops")]
+use rayon::prelude::*;
+
+macro_rules! sequential_op_map {
+    ($slice:expr, |$pat:pat_param| $body:expr) => {{ $slice.iter().map(|$pat| $body).collect() }};
+}
+
+macro_rules! sequential_op_zip_map {
+    ($slice1:expr, $slice2:expr, |$pat1:pat_param, $pat2:pat_param| $body:expr) => {{
+        $slice1
+            .iter()
+            .zip($slice2.iter())
+            .map(|($pat1, $pat2)| $body)
+            .collect()
+    }};
+}
+
+macro_rules! op_map {
+    ($slice:expr, |$pat:pat_param| $body:expr) => {{
+        #[cfg(not(feature = "parallel_ops"))]
+        {
+            sequential_op_map!($slice, |$pat| $body)
+        }
+        #[cfg(feature = "parallel_ops")]
+        {
+            // Only parallelize large operations
+            if $slice.len() > 250_000 {
+                $slice.par_iter().map(|$pat| $body).collect()
+            } else {
+                sequential_op_map!($slice, |$pat| $body)
+            }
+        }
+    }};
+}
+
+macro_rules! op_zip_map {
+    ($slice1:expr, $slice2:expr, |$pat1:pat_param, $pat2:pat_param| $body:expr) => {{
+        #[cfg(not(feature = "parallel_ops"))]
+        {
+            sequential_op_zip_map!($slice1, $slice2, |$pat1, $pat2| $body)
+        }
+        #[cfg(feature = "parallel_ops")]
+        {
+            // Only parallelize large operations
+            if $slice1.len() > 250_000 {
+                $slice1
+                    .par_iter()
+                    .zip($slice2.par_iter())
+                    .map(|($pat1, $pat2)| $body)
+                    .collect()
+            } else {
+                sequential_op_zip_map!($slice1, $slice2, |$pat1, $pat2| $body)
+            }
+        }
+    }};
+}
+
 /// Check if two tensors have the same shape.
 pub(super) fn check_shapes(a: &Tensor, b: &Tensor) -> Result<(), TensorError> {
     if a.shape() != b.shape() {
@@ -13,50 +70,16 @@ pub(super) fn check_shapes(a: &Tensor, b: &Tensor) -> Result<(), TensorError> {
     }
 }
 
-/// Transpose a rank-2 tensor.
-pub fn transpose(t: &Tensor) -> Result<Tensor, TensorError> {
-    if t.shape.len() != 2 {
-        return Err(TensorError::DimensionError(
-            "Transpose requires rank-2 tensor".to_string(),
-        ));
-    }
-
-    let rows = t.shape[0];
-    let cols = t.shape[1];
-
-    let mut out = vec![0.0; rows * cols];
-
-    for i in 0..rows {
-        for j in 0..cols {
-            out[j * rows + i] = t.data[i * cols + j];
-        }
-    }
-
-    Ok(Tensor::from_vec_with_node(
-        out,
-        vec![cols, rows],
-        t.node.clone(),
-    ))
-}
-
 /// Element-wise multiplication of two tensors without gradient tracking.
 pub fn raw_mul(a: &Tensor, b: &Tensor) -> Result<Tensor, TensorError> {
     check_shapes(a, b)?;
-
-    let mut out = a.data.clone();
-    for (i, v) in out.iter_mut().enumerate() {
-        *v *= b.data[i];
-    }
-
+    let out = op_zip_map!(a.data, b.data, |x, y| x * y);
     Ok(Tensor::new(out, a.shape.clone()))
 }
 
 /// Element-wise multiplication of a tensor by a scalar without gradient tracking.
 pub fn raw_scalar_mul(t: &Tensor, scalar: f32) -> Result<Tensor, TensorError> {
-    let mut out = t.data.clone();
-    for v in out.iter_mut() {
-        *v *= scalar;
-    }
+    let out = op_map!(t.data, |x| x * scalar);
     Ok(Tensor::new(out, t.shape.clone()))
 }
 
@@ -64,12 +87,34 @@ pub fn raw_scalar_mul(t: &Tensor, scalar: f32) -> Result<Tensor, TensorError> {
 pub fn raw_div(a: &Tensor, b: &Tensor) -> Result<Tensor, TensorError> {
     check_shapes(a, b)?;
 
-    let mut out = a.data.clone();
-    for (i, v) in out.iter_mut().enumerate() {
-        if b.data[i] == 0.0 {
-            return Err(TensorError::DivisionByZero);
+    let out: Vec<f32>;
+    #[cfg(not(feature = "parallel_ops"))]
+    {
+        let mut tmp = a.data.clone();
+        for (i, v) in tmp.iter_mut().enumerate() {
+            if b.data[i] == 0.0 {
+                return Err(TensorError::DivisionByZero);
+            }
+            *v /= b.data[i];
         }
-        *v /= b.data[i];
+        out = tmp;
+    }
+    #[cfg(feature = "parallel_ops")]
+    {
+        let result: Result<Vec<f32>, TensorError> = a
+            .data
+            .par_iter()
+            .zip(b.data.par_iter())
+            .map(|(x, y)| {
+                if *y == 0.0 {
+                    Err(TensorError::DivisionByZero)
+                } else {
+                    Ok(x / y)
+                }
+            })
+            .collect();
+
+        out = result?; // Propagate possible DivisionByZero
     }
 
     Ok(Tensor::new(out, a.shape.clone()))
@@ -80,10 +125,7 @@ pub fn raw_scalar_div(t: &Tensor, scalar: f32) -> Result<Tensor, TensorError> {
     if scalar == 0.0 {
         return Err(TensorError::DivisionByZero);
     }
-    let mut out = t.data.clone();
-    for v in out.iter_mut() {
-        *v /= scalar;
-    }
+    let out = op_map!(t.data, |x| x / scalar);
     Ok(Tensor::new(out, t.shape.clone()))
 }
 
@@ -107,66 +149,83 @@ pub fn raw_matmul(a: &Tensor, b: &Tensor) -> Result<Tensor, TensorError> {
     }
 
     let mut out_data = vec![0.0; m * n];
-    for i in 0..m {
-        for j in 0..n {
-            let mut sum = 0.0;
-            for k in 0..k1 {
-                sum += a.data[i * k1 + k] * b.data[k * n + j];
+
+    fn sequential_matmul(
+        mut out_data: Vec<f32>,
+        a_data: &[f32],
+        b_data: &[f32],
+        m: usize,
+        n: usize,
+        k1: usize,
+    ) -> Vec<f32> {
+        for i in 0..m {
+            for j in 0..n {
+                let mut sum = 0.0;
+                for k in 0..k1 {
+                    sum += a_data[i * k1 + k] * b_data[k * n + j];
+                }
+                out_data[i * n + j] = sum;
             }
-            out_data[i * n + j] = sum;
+        }
+        out_data
+    }
+
+    #[cfg(not(feature = "parallel_ops"))]
+    {
+        out_data = sequential_matmul(out_data, &a.data, &b.data, m, n, k1);
+    }
+
+    #[cfg(feature = "parallel_ops")]
+    {
+        if a.shape[0] * a.shape[1] * b.shape[0] > 500_000 {
+            let a_data = a.data();
+            let b_data = b.data();
+            out_data.par_chunks_mut(n).enumerate().for_each(|(i, row)| {
+                for j in 0..n {
+                    let mut sum = 0.0;
+                    for k in 0..k1 {
+                        sum += a_data[i * k1 + k] * b_data[k * n + j];
+                    }
+                    row[j] = sum;
+                }
+            });
+        } else {
+            out_data = sequential_matmul(out_data, &a.data, &b.data, m, n, k1);
         }
     }
+
     Ok(Tensor::new(out_data, vec![m, n]))
 }
 
 /// Element-wise addition of two tensors without gradient tracking.
 pub fn raw_add(a: &Tensor, b: &Tensor) -> Result<Tensor, TensorError> {
     check_shapes(a, b)?;
-
-    let mut out = a.data.clone();
-    for (i, v) in out.iter_mut().enumerate() {
-        *v += b.data[i];
-    }
-
+    let out = op_zip_map!(a.data, b.data, |x, y| x + y);
     Ok(Tensor::new(out, b.shape.clone()))
 }
 
 /// Element-wise subtraction of two tensors without gradient tracking.
 pub fn raw_sub(a: &Tensor, b: &Tensor) -> Result<Tensor, TensorError> {
     check_shapes(a, b)?;
-
-    let mut out = a.data.clone();
-    for (i, v) in out.iter_mut().enumerate() {
-        *v -= b.data[i];
-    }
-
+    let out = op_zip_map!(a.data, b.data, |x, y| x - y);
     Ok(Tensor::new(out, b.shape.clone()))
 }
 
 /// Element-wise addition of a tensor and a scalar without gradient tracking.
 pub fn raw_scalar_add(t: &Tensor, scalar: f32) -> Result<Tensor, TensorError> {
-    let mut out = t.data.clone();
-    for v in out.iter_mut() {
-        *v += scalar;
-    }
+    let out = op_map!(t.data, |x| x * scalar);
     Ok(Tensor::new(out, t.shape.clone()))
 }
 
 /// Element-wise exponential of a tensor without gradient tracking.
 pub fn raw_exp(t: &Tensor) -> Result<Tensor, TensorError> {
-    let mut out = t.data.clone();
-    for v in out.iter_mut() {
-        *v = v.exp();
-    }
+    let out = op_map!(t.data, |x| x.exp());
     Ok(Tensor::new(out, t.shape.clone()))
 }
 
 /// Element-wise inversion of a tensor without gradient tracking.
 pub fn raw_inv(t: &Tensor) -> Result<Tensor, TensorError> {
-    let mut out = t.data.clone();
-    for v in out.iter_mut() {
-        *v = 1.0 / *v;
-    }
+    let out = op_map!(t.data, |x| x.exp());
     Ok(Tensor::new(out, t.shape.clone()))
 }
 
@@ -175,18 +234,19 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_transpose() {
-        let t = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], vec![2, 3]);
-        let t = transpose(&t).unwrap();
-        assert_eq!(t.data(), &[1.0, 4.0, 2.0, 5.0, 3.0, 6.0]);
-    }
-
-    #[test]
     fn test_raw_multiplication() {
         let t1 = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
         let t2 = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
         let res = raw_mul(&t1, &t2).unwrap();
         assert_eq!(res.data(), &[1.0, 4.0, 9.0]);
+    }
+
+    #[test]
+    fn test_division_by_zero() {
+        let t1 = Tensor::from_vec(vec![1.0, 2.0, 3.0], vec![3]);
+        let t2 = Tensor::from_vec(vec![1.0, 0.0, 1.0], vec![3]);
+        let res = raw_div(&t1, &t2);
+        assert!(res.is_err());
     }
 
     #[test]

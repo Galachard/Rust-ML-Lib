@@ -6,6 +6,49 @@ use crate::tensor::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+#[cfg(feature = "parallel_ops")]
+use rayon::prelude::*;
+
+/// Transpose a rank-2 tensor.
+pub fn transpose(t: &Tensor) -> Result<Tensor, TensorError> {
+    if t.shape.len() != 2 {
+        return Err(TensorError::DimensionError(
+            "Transpose requires rank-2 tensor".to_string(),
+        ));
+    }
+
+    let rows = t.shape[0];
+    let cols = t.shape[1];
+
+    let mut out = vec![0.0; rows * cols];
+
+    #[cfg(not(feature = "parallel_ops"))]
+    {
+        for i in 0..rows {
+            for j in 0..cols {
+                out[j * rows + i] = t.data[i * cols + j];
+            }
+        }
+    }
+
+    #[cfg(feature = "parallel_ops")]
+    {
+        let data = t.data();
+        out.par_chunks_mut(rows).enumerate().for_each(|(j, col)| {
+            for i in 0..rows {
+                col[i] = data[i * cols + j];
+            }
+        });
+    }
+
+    // Always handle nodes on the main thread
+    Ok(Tensor::from_vec_with_node(
+        out,
+        vec![cols, rows],
+        t.node.clone(),
+    ))
+}
+
 /// Element-wise addition of two tensors with gradient tracking.
 pub fn add(a: &Tensor, b: &Tensor) -> Result<Tensor, TensorError> {
     let out_data = raw_add(a, b)?;
@@ -306,6 +349,13 @@ fn node_rc_of(t: &Tensor) -> Rc<RefCell<Node>> {
 mod test {
     use super::*;
     use crate::grad::LeafGrad;
+
+    #[test]
+    fn test_transpose() {
+        let t = Tensor::from_vec_leaf(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], vec![2, 3]);
+        let t = transpose(&t).unwrap();
+        assert_eq!(t.data(), &[1.0, 4.0, 2.0, 5.0, 3.0, 6.0]);
+    }
 
     #[test]
     fn test_add_backward() {

@@ -1,7 +1,7 @@
 use ml_lib::data::mnist::load_mnist_as_tensors;
 use ml_lib::layer::Layer;
 use ml_lib::layer::initializer::{HeNormal, Zeros};
-use ml_lib::{Tensor, layer, loss, optimizer};
+use ml_lib::{layer, loss, optimizer};
 use std::path::PathBuf;
 
 fn main() {
@@ -15,22 +15,6 @@ fn main() {
 
     let (inputs, targets) =
         load_mnist_as_tensors(images, labels, 10).expect("Failed to load MNIST dataset.");
-
-    println!("First input stats:");
-    let x = &inputs[0];
-    println!(
-        "shape = {:?}, min = {}, max = {}, mean = {}",
-        x.shape,
-        x.data.iter().cloned().fold(f32::INFINITY, f32::min),
-        x.data.iter().cloned().fold(f32::NEG_INFINITY, f32::max),
-        x.data.iter().sum::<f32>() / x.data.len() as f32,
-    );
-
-    println!("First target:");
-    println!(
-        "shape = {:?}, data = {:?}",
-        targets[0].shape, targets[0].data
-    );
 
     let mut model = layer::Sequential::new();
     model.add(layer::Linear::new(784, 64, &HeNormal {}, &Zeros {}));
