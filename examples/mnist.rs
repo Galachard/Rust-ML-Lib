@@ -1,8 +1,20 @@
 use ml_lib::data::mnist::load_mnist_as_tensors;
 use ml_lib::layer::Layer;
 use ml_lib::layer::initializer::{HeNormal, Zeros};
-use ml_lib::{layer, loss, optimizer};
+use ml_lib::{Tensor, layer, loss, optimizer};
 use std::path::PathBuf;
+
+fn argmax(tensor: &Tensor) -> usize {
+    let mut max_index = 0;
+    let mut max_value = tensor.data[0];
+    for (i, &value) in tensor.data.iter().enumerate() {
+        if value > max_value {
+            max_value = value;
+            max_index = i;
+        }
+    }
+    max_index
+}
 
 fn main() {
     // Load the MNIST train dataset
@@ -10,8 +22,6 @@ fn main() {
     base_path.push("data/mnist");
     let images = base_path.join("train-images.idx3-ubyte");
     let labels = base_path.join("train-labels.idx1-ubyte");
-
-    println!("{}", images.as_path().display());
 
     let (inputs, targets) =
         load_mnist_as_tensors(images, labels, 10).expect("Failed to load MNIST dataset.");
@@ -30,8 +40,28 @@ fn main() {
         &mut opt,
         &inputs,
         &targets,
-        2,
+        4,
         64,
         loss::softmax_cross_entropy,
     );
+
+    // Load MNIST test dataset
+    let test_images = base_path.join("t10k-images.idx3-ubyte");
+    let test_labels = base_path.join("t10k-labels.idx1-ubyte");
+
+    let (test_inputs, test_targets) = load_mnist_as_tensors(test_images, test_labels, 10)
+        .expect("Failed to load MNIST test dataset.");
+
+    let mut correct = 0;
+    for i in 0..test_inputs.len() {
+        let output = model.forward(&test_inputs[i]);
+        let predicted_label = argmax(&output);
+        let true_label = argmax(&test_targets[i]);
+        if predicted_label == true_label {
+            correct += 1;
+        }
+    }
+
+    let accuracy = correct as f32 / test_inputs.len() as f32;
+    println!("Test Accuracy: {:.2}%", accuracy * 100.0);
 }
